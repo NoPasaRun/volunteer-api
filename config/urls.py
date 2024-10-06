@@ -20,9 +20,17 @@ from django.contrib import admin
 from django.urls import path
 from django.urls.conf import include
 
+from api.views import volunteer_chart, average_participant_count, task_chart, token, spa, logout
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
+    path("volunteer_chart/", volunteer_chart, name="volunteer-chart"),
+    path("avg_participant_count/", average_participant_count, name="avg-participant-count"),
+    path("task_chart/", task_chart, name="task-chart"),
+    path("token/<uuid:code>/", token, name="token_obtain_by_link"),
+    path("spa/", spa, name="spa"),
+    path("logout/", logout, name="logout")
 ]
 
 

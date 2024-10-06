@@ -5,13 +5,11 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from drf_yasg.generators import OpenAPISchemaGenerator
 
-from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import AllowAny
 
 from api.api import (
-    VolunteerApi, LinkApiView, TaskApi,
-    TokenObtainByLink, MyTaskApi,
-    ManageTaskApi, MyApi, CommentApi
+    VolunteerApi, LinkApiView, TaskApi, TokenApi,
+    MyTaskApi, ManageTaskApi, MyApi, CommentApi
 )
 
 api_routes = [
@@ -42,8 +40,7 @@ SchemaView = get_schema_view(
 
 urlpatterns = [
     path("", include(api_routes)),
-    path("token/", TokenObtainPairView.as_view(), name="token_obtain"),
-    path("token/<uuid:code>/", TokenObtainByLink.as_view(), name="token_obtain_by_link"),
+    path("token/", TokenApi.as_view(), name="token_obtain"),
     path(
         "swagger<format>/", SchemaView.without_ui(cache_timeout=0), name="schema-json"
     ),

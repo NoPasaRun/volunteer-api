@@ -72,7 +72,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates', BASE_DIR / 'api/templates']
+        'DIRS': [BASE_DIR / 'api/templates']
         ,
         'APP_DIRS': True,
         'OPTIONS': {
@@ -106,7 +106,7 @@ DATABASES = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'api.auth.JWTVolunteerAuthentication',
     ],
 }
 
@@ -133,10 +133,10 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id",
-    "USER_ID_CLAIM": "vuser_id",
+    "USER_ID_CLAIM": "volunteer_id",
 
-    "TOKEN_OBTAIN_SERIALIZER": "api.serializers.VUserLoginSerializer",
-    "TOKEN_REFRESH_SERIALIZER": "api.serializers.VUserLoginSerializer"
+    "TOKEN_OBTAIN_SERIALIZER": "api.serializers.VolunteerLoginSerializer",
+    "TOKEN_REFRESH_SERIALIZER": "api.serializers.VolunteerLoginSerializer"
 }
 
 
@@ -174,6 +174,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
+STATICFILES_DIRS = (
+    BASE_DIR / "api/static",
+)
+
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 
@@ -190,3 +194,4 @@ LOGIN_URL = "/admin/login"
 LOGIN_REDIRECT_URL = "/api/swagger"
 
 AUTH_USER_MODEL = "api.VUser"
+APPEND_SLASH = False

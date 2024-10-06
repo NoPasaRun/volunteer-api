@@ -1,22 +1,23 @@
-from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
+from django.db.models import Q
+
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import generics
-from rest_framework_simplejwt.views import TokenViewBase
 
-from api.models import Link, Task, Rating, Volunteer, Unit
-from api.permissions import VolunteerPermission
-from api.serializers import TaskSerializer, VUserLoginSerializer, VolunteerSerializer, CommentSerializer, \
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+from api.models import Link, Task, Rating, Volunteer, Unit, Comment
+from api.serializers import TaskSerializer, VolunteerSerializer, CommentSerializer, \
     VolunteerReadSerializer, CommentReadSerializer
 
 
-class TokenObtainByLink(TokenViewBase):
+class TokenApi(TokenObtainPairView):
 
-    def post(self, request, code, *args, **kwargs):
-        serializer = VUserLoginSerializer(data={"code": code})
-        if serializer.is_valid():
-            return Response(serializer.validated_data, status=200)
-        return Response(serializer.errors, status=400)
+    def post(self, request, *args, **kwargs):
+        response = super(TokenApi, self).post(request, *args, **kwargs)
+        response.set_cookie("token", response.data.get("access"))
+        return response
 
 
 class LinkApiView(APIView):
@@ -37,15 +38,17 @@ class VolunteerApi(generics.ListAPIView):
     serializer_class = VolunteerSerializer
 
     def get_queryset(self):
-        return sorted(Volunteer.objects.all(), key=lambda v: v.score)
+        return sorted(Volunteer.objects.all(), key=lambda v: v.score, reverse=True)
 
 
 class MyApi(generics.CreateAPIView):
 
-    def get_permissions(self):
-        if self.request.method == "GET":
-            return [VolunteerPermission()]
-        return []
+    serializer_class = VolunteerSerializer
+
+    def get_permission_class(self):
+        if self.request.method == 'POST':
+            return ()
+        return (IsAuthenticated(),)
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -53,11 +56,11 @@ class MyApi(generics.CreateAPIView):
         return VolunteerSerializer
 
     def get(self, request):
-        data = VolunteerSerializer(instance=request.user.volunteer).data
+        data = self.get_serializer(instance=request.user).data
         return Response(data, 200)
 
     def post(self, request, *args, **kwargs):
-        serializer = VolunteerSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=200)
@@ -71,10 +74,7 @@ class TaskApi(generics.ListAPIView):
     def get_queryset(self):
         if not self.request.user.is_authenticated:
             return Task.objects.filter(is_open=False)
-        params = self.request.query_params
-
-        queryset = Task.objects.filter(is_open=params.get("is_open", True))
-        return queryset
+        return Task.objects.filter(~Q(ratings__volunteer=self.request.user) & Q(unit=self.request.user.link.unit))
 
 
 class MyTaskApi(TaskApi):
@@ -82,7 +82,7 @@ class MyTaskApi(TaskApi):
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
-        return Task.objects.filter(ratings__volunteer__user=self.request.user)
+        return Task.objects.filter(ratings__volunteer=self.request.user, unit=self.request.user.link.unit)
 
 
 def proceed_task(view):
@@ -96,32 +96,47 @@ def proceed_task(view):
 
 class ManageTaskApi(APIView):
 
-    permission_classes = (VolunteerPermission,)
+    permission_classes = (IsAuthenticated,)
 
     @proceed_task
     def post(self, request, task: Task, *args, **kwargs):
-        Rating(task=task, volunteer=request.user.volunteer).save()
+        if task.unit != request.user.link.unit:
+            return Response({"detail": "You're not a part of the task's group"}, status=403)
+        if not task.is_open:
+            return Response({"detail": "You cannot accept task when it is closed"}, status=400)
+        unique_data = {"task": task, "volunteer": request.user}
+        if Rating.objects.filter(**unique_data).first():
+            return Response({"error": "You have already signed to this task"}, status=400)
+        Rating(**unique_data).save()
         return Response({"success": True}, 200)
 
     @proceed_task
     def delete(self, request, task: Task, *args, **kwargs):
+        if not task.is_open:
+            return Response({"detail": "You cannot deny task when it is closed"}, status=400)
         Rating.objects.filter(task=task).delete()
         return Response({"success": True}, 202)
 
 
-class CommentApi(generics.CreateAPIView):
-
-    permission_classes = (VolunteerPermission,)
+class CommentApi(generics.CreateAPIView, generics.ListAPIView):
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return CommentReadSerializer
         return CommentSerializer
 
+    def get_queryset(self):
+        task_id = self.request.parser_context.get('kwargs').get('task_id')
+        return Comment.objects.filter(task_id=task_id)
+
     @proceed_task
     def post(self, request, task: Task, *args, **kwargs):
-        serializer = CommentSerializer(data=request.data)
+        serializer = CommentSerializer(
+            data=request.data, task=task,
+            volunteer=request.user,
+            context=self.get_serializer_context()
+        )
         if serializer.is_valid():
-            serializer.save(task=task, volunteer=request.user.volunteer)
+            serializer.save()
             return Response(serializer.data, status=200)
         return Response(serializer.errors, status=400)

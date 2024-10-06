@@ -21,20 +21,29 @@ class UploadToPathAndRename(object):
 
 class VUser(AbstractUser):
     TARIFFS = (
-        ((FREE := "free"), "Бесплатный"),
+        ("free", "Бесплатный"),
         ("advanced", "Расширенный"),
         ("special", "Специальный")
     )
-    tariff = models.CharField(max_length=100, choices=TARIFFS, default=FREE)
+    tariff = models.CharField(max_length=100, choices=TARIFFS, default="free", verbose_name="Тарифф")
+
+    @property
+    def advanced(self):
+        return self.tariff == "advanced"
 
     def __str__(self):
         return str(self.username)
 
+    class Meta:
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
+
 
 class Unit(models.Model):
-    creator = models.ForeignKey(VUser, on_delete=models.CASCADE, related_name='units')
-    title = models.CharField(max_length=100)
-    description = models.TextField()
+    creator = models.ForeignKey(VUser, on_delete=models.CASCADE,
+                                related_name='units', verbose_name="Создатель")
+    title = models.CharField(max_length=100, verbose_name="Название")
+    description = models.TextField(verbose_name="Описание")
 
     class Meta:
         verbose_name = "Группа"
@@ -45,11 +54,15 @@ class Unit(models.Model):
 
 
 class Link(models.Model):
-    code = models.UUIDField(unique=True, default=uuid4)
-    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='links')
+    code = models.UUIDField(unique=True, default=uuid4, verbose_name="Код")
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='links', verbose_name="Группа")
+
+    @property
+    def owner(self):
+        return self.unit.creator
 
     def __str__(self):
-        return str(self.code)
+        return f"{self.code} - {self.unit}"
 
     class Meta:
         verbose_name = "Ссылка"
@@ -60,13 +73,13 @@ class Link(models.Model):
 
 
 class Task(models.Model):
-    title = models.CharField(max_length=100)
-    description = models.TextField()
-    creator = models.ForeignKey(VUser, on_delete=models.CASCADE, related_name='tasks')
-    score = models.PositiveIntegerField(default=0)
-    date_start = models.DateTimeField()
-    date_end = models.DateTimeField()
-    is_open = models.BooleanField(default=True)
+    title = models.CharField(max_length=100, verbose_name="Название")
+    description = models.TextField(verbose_name="Описание")
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='tasks', verbose_name="Группа")
+    score = models.PositiveIntegerField(default=0, verbose_name="Баллы")
+    date_start = models.DateTimeField(verbose_name="Дата начала")
+    date_end = models.DateTimeField(verbose_name="Дата завершения")
+    is_open = models.BooleanField(default=True, verbose_name="Доступна")
 
     def __str__(self):
         return str(self.title)
@@ -76,17 +89,41 @@ class Task(models.Model):
         verbose_name_plural = "Задачи"
 
     @property
+    def owner(self):
+        return self.unit.creator
+
+    @property
     def is_archived(self):
-        return self.date_end + timedelta(days=2) > datetime.now()
+        return (self.date_end + timedelta(days=2)).timestamp() < datetime.now().timestamp()
 
 
 class Volunteer(models.Model):
-    user = models.OneToOneField(VUser, on_delete=models.CASCADE, related_name='volunteer')
-    link = models.OneToOneField(Link, on_delete=models.CASCADE, related_name='volunteer')
-    avatar = models.ImageField(upload_to=UploadToPathAndRename("volunteer"), null=True, blank=True)
+    first_name = models.CharField(max_length=100, verbose_name="Имя")
+    last_name = models.CharField(max_length=100, verbose_name="Фамилия")
+    email = models.EmailField(unique=True, verbose_name="Почта")
+    link = models.OneToOneField(Link, on_delete=models.CASCADE,
+                                related_name='volunteer', verbose_name="Ссылка")
+    avatar = models.ImageField(upload_to=UploadToPathAndRename("volunteer"),
+                               null=True, blank=True, verbose_name="Аватар")
+
+    @property
+    def fullname(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def owner(self):
+        return self.link.unit.creator
 
     def __str__(self):
-        return f"Волонтер {self.user}"
+        return f"Волонтер {self.fullname}"
 
     class Meta:
         verbose_name = "Волонтер"
@@ -94,17 +131,23 @@ class Volunteer(models.Model):
 
     @property
     def score(self):
-        return self.ratings.filter(task__is_open=False).aggregate(
+        value = self.ratings.filter(task__is_open=False).aggregate(
             Sum("task__score")
         ).get("task__score__sum", 0)
+        return 0 if not value else value
 
 
 class Rating(models.Model):
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='ratings')
-    volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE, related_name='ratings')
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='ratings', verbose_name="Задача")
+    volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE,
+                                  related_name='ratings', verbose_name="Волонтер")
 
     def __str__(self):
         return f"{self.volunteer} на {self.task}"
+
+    @property
+    def owner(self):
+        return self.task.unit.creator
 
     class Meta:
         unique_together = ('task', 'volunteer')
@@ -113,10 +156,12 @@ class Rating(models.Model):
 
 
 class Comment(models.Model):
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='comments')
-    volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE, related_name='comments')
-    text = models.TextField()
-    photo = models.ImageField(upload_to=UploadToPathAndRename("comment"), null=True, blank=True)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='comments', verbose_name="Задача")
+    volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE,
+                                  related_name='comments', verbose_name="Волонтер")
+    text = models.TextField(verbose_name="Текст")
+    photo = models.ImageField(upload_to=UploadToPathAndRename("comment"),
+                              null=True, blank=True, verbose_name="Фото")
 
     def __str__(self):
         return f"От {self.volunteer}: {self.text[:20] + ('...' if len(self.text) > 20 else '')}"

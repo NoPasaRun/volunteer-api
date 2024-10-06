@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="/static/spa/css/spa.css">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <title>Личный кабинет</title>
+</head>
+<body>
+    <main class="main">
+        <section class="login">
+            <div class="wrapper">
+                <form class="login__form">
+                    <div class="form__block">
+                        <input type="text" name="code" placeholder="Введите код для входа">
+                    </div>
+                    <div class="form__buttons">
+                        <button class="submit__button">
+                            ВОЙТИ
+                        </button>
+                        <a class="submit__link" href="/spa/?block=register">
+                            СОЗДАТЬ АККАУНТ
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </section>
+        <section class="register">
+            <div class="wrapper">
+                <form class="register__form">
+                    <div class="form__block">
+                        <input type="text" name="first_name" placeholder="Введите имя" required>
+                    </div>
+                    <div class="form__block">
+                        <input type="text" name="last_name" placeholder="Введите фамилию" required>
+                    </div>
+                    <div class="form__block">
+                        <input type="email" name="email" placeholder="Введите почту" required>
+                    </div>
+                    <div class="form__block">
+                        <input type="text" name="code" placeholder="Введите код для регистрации" required>
+                    </div>
+                    <div class="form__block">
+                        <input type="file" name="avatar">
+                    </div>
+                    <button class="submit__button">
+                        СОЗДАТЬ
+                    </button>
+                </form>
+            </div>
+        </section>
+        <section class="lk">
+            <div class="wrapper wrapper_column">
+                <div class="lk__header">
+                    <h1 class="lk__heading">ВАШ АККАУНТ</h1>
+                    <a class="submit__link" href="/logout/">Выход</a>
+                </div>
+                <div class="lk__block">
+                    <h2 class="lk__heading lk__heading_mb">Доступные задачи</h2>
+                    <ul id="other-tasks" class="tasks">
+    
+                    </ul>
+                </div>
+                <div class="lk__block">
+                    <h2 class="lk__heading lk__heading_mb">Ваши задачи</h2>
+                    <ul id="my-tasks" class="tasks">
+    
+                    </ul>
+                </div>
+                <div class="lk__block">
+                    <h2 class="lk__heading lk__heading_mb">Ваши данные</h2>
+                    <div id="my-info" class="lk__info">
+
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script>const BLOCK = "{{ block }}";const ACCESS = "{{ access }}";</script>
+    <script src="/static/spa/js/spa.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+.task__volunteer_list,
+.task__comment_list {
+    width: 100%;
+}
+
+.volunteer__image,
+.comment__image {
+    width: 150px;
+}

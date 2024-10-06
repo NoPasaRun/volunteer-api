@@ -20,3 +20,5 @@ setuptools==75.1.0
 sqlparse==0.5.1
 typing_extensions==4.12.2
 uritemplate==4.1.1
+qrcode~=8.0
+Faker~=30.1.0
