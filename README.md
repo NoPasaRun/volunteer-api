@@ -8,7 +8,7 @@ VolunteerApi is a Django-based REST API for managing volunteer activities. It al
       <img src="screenshots/spa.png" alt="Top Left"/><br/><br/>
       <img src="screenshots/charts.png" alt="Bottom Left"/>
     </td>
-    <td>
+    <td style="width: 50%">
       <img src="screenshots/qr-code.png" alt="Main View"/>
       <img src="screenshots/comments_under_task.png" alt="Main View"/>
     </td>
